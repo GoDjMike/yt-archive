@@ -28,7 +28,7 @@ retry them on the next run.
 
 ## Requirements
 
-- macOS or Linux
+- macOS, Linux, or Windows 10/11
 - Python 3.9+
 - [`yt-dlp`](https://github.com/yt-dlp/yt-dlp) (Python package)
 - [`ffmpeg`](https://ffmpeg.org/) / `ffprobe` (CLI tools, for the
@@ -40,8 +40,29 @@ On macOS with Homebrew:
 brew install ffmpeg yt-dlp
 ```
 
-(Or install `yt-dlp` via `uv pip install -r requirements.txt` and let
-`ffmpeg` come from Homebrew.)
+On Windows:
+
+```powershell
+winget install --id Gyan.FFmpeg
+uv pip install yt-dlp
+```
+
+If `winget` is unavailable, use Chocolatey or Scoop:
+
+```powershell
+choco install ffmpeg
+```
+
+```powershell
+scoop install ffmpeg
+```
+
+If `yt-dlp` or `ffprobe` is not on `PATH`, set it explicitly:
+
+```powershell
+$env:YT_ARCHIVIST_YT_DLP = "C:\Path\To\yt-dlp.exe"
+$env:YT_ARCHIVIST_FFPROBE = "C:\Path\To\ffprobe.exe"
+```
 
 ## Setup
 
@@ -51,6 +72,16 @@ cd ~/dev/projects/yt-archivist
 
 # Create a venv and install the one Python dep
 uv venv
+uv pip install -r requirements.txt
+```
+
+```powershell
+git clone <this-repo> C:\Users\<you>\dev\tools\yt-archive
+cd C:\Users\<you>\dev\tools\yt-archive
+
+# Create a venv and install the one Python dep
+uv venv
+.venv\Scripts\Activate.ps1
 uv pip install -r requirements.txt
 ```
 
@@ -65,6 +96,12 @@ replace the placeholder entries with your own URLs:
 $EDITOR targets.md
 ```
 
+On Windows PowerShell:
+
+```powershell
+notepad targets.md
+```
+
 Each entry needs at minimum a URL and a `series` (the subfolder name).
 The downloader auto-creates `files/<series>/` on first use.
 
@@ -72,6 +109,12 @@ The downloader auto-creates `files/<series>/` on first use.
 
 ```sh
 python download_audio.py
+```
+
+On Windows:
+
+```powershell
+py download_audio.py
 ```
 
 The script only processes entries marked `complete: true/false`, so it's
@@ -89,6 +132,12 @@ python download_audio.py --targets my-other-list.md --files-dir downloads
 python retry_failed.py
 ```
 
+On Windows:
+
+```powershell
+py retry_failed.py
+```
+
 Lists the first 5 incomplete URLs, asks for confirmation, then runs the
 main downloader. Useful after a long session you don't want to start by
 accident.
@@ -101,6 +150,16 @@ python cleanup_partial.py --dry-run
 
 # Then do it for real
 python cleanup_partial.py --no-dry-run
+```
+
+On Windows:
+
+```powershell
+# See what would happen first
+py cleanup_partial.py --dry-run
+
+# Then do it for real
+py cleanup_partial.py --no-dry-run
 ```
 
 Tweak the "suspiciously small" threshold for short-form content:
@@ -161,7 +220,7 @@ The cleanup script's threshold (`MIN_AUDIO_SIZE_MB = 50`) lives in
 
 - `files/` — the actual audio. Large, regenerable, and tied to a
  particular machine's filesystem.
-- `.venv/`, `__pycache__/`, `.DS_Store`, `.claude/` — standard ignores.
+- `.venv/`, `__pycache__/`, `.DS_Store`, `Thumbs.db`, `.claude/` — standard ignores.
 
 ## Notes
 

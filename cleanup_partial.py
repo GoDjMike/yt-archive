@@ -16,9 +16,7 @@ Pass --no-dry-run to actually delete and reset.
 """
 
 import argparse
-import json
 import os
-import subprocess
 import sys
 from pathlib import Path
 
@@ -39,29 +37,6 @@ VIDEO_EXTENSIONS = (".webm", ".mp4", ".mkv", ".avi", ".mov")
 # Audio extensions the downloader can produce. Used for the "suspiciously
 # small" check and the folder-status summary.
 AUDIO_EXTENSIONS = (".opus", ".mp3", ".m4a", ".aac", ".wav")
-
-
-def get_audio_duration(filepath):
- """Get duration of an audio file in seconds via ffprobe, or None on failure."""
- try:
- result = subprocess.run(
- [
- "ffprobe",
- "-v",
- "quiet",
- "-print_format",
- "json",
- "-show_format",
- filepath,
- ],
- capture_output=True,
- text=True,
- check=True,
- )
- info = json.loads(result.stdout)
- return float(info["format"]["duration"])
- except Exception:
- return None
 
 
 def find_problematic_files(files_dir, min_audio_mb):

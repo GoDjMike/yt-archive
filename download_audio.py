@@ -17,6 +17,7 @@ import os
 import re
 import subprocess
 import sys
+import shutil
 from pathlib import Path
 
 # --- Configuration (tweak to taste) ---
@@ -38,12 +39,46 @@ DURATION_TOLERANCE_PERCENT = 5.0
 UNCATEGORIZED = "Uncategorized"
 
 
+def resolve_command(binary_name, module_fallback=None):
+ """Resolve a CLI dependency to a concrete command list.
+
+ Tries PATH first (including `.exe` on Windows), then falls back to a module
+ invocation for utilities that support `python -m`.
+ """
+ env_key = f"YT_ARCHIVIST_{binary_name.upper().replace('-', '_')}"
+ env_value = os.environ.get(env_key)
+ if env_value:
+ return [env_value]
+
+ candidates = [binary_name]
+ if os.name == "nt" and not binary_name.endswith(".exe"):
+ candidates.insert(0, f"{binary_name}.exe")
+
+ for candidate in candidates:
+ command = shutil.which(candidate)
+ if command:
+ return [command]
+
+ if module_fallback:
+ return [sys.executable, "-m", module_fallback]
+
+ return None
+
+
+YT_DLP_CMD = resolve_command("yt-dlp", module_fallback="yt_dlp")
+FFPROBE_CMD = resolve_command("ffprobe")
+
+
 def get_audio_duration(filepath):
  """Get duration of an audio file in seconds via ffprobe, or None on failure."""
+ if not FFPROBE_CMD:
+ print("Error: ffprobe not found. Set YT_ARCHIVIST_FFPROBE or install ffmpeg.")
+ return None
+
  try:
  result = subprocess.run(
- [
- "ffprobe",
+ FFPROBE_CMD
+ + [
  "-v",
  "quiet",
  "-print_format",
@@ -63,9 +98,14 @@ def get_audio_duration(filepath):
 
 def get_video_info(url):
  """Get video title and duration via yt-dlp, or None on failure."""
+ if not YT_DLP_CMD:
+ print("Error: yt-dlp not found. Set YT_ARCHIVIST_YT_DLP or install yt-dlp.")
+ return None
+
  try:
  result = subprocess.run(
- ["yt-dlp", "--dump-json", "--no-download", "--no-playlist", url],
+ YT_DLP_CMD
+ + ["--dump-json", "--no-download", "--no-playlist", url],
  capture_output=True,
  text=True,
  check=True,
@@ -100,8 +140,35 @@ def sanitize_filename(title):
  sanitized = re.sub(r'[<>:"/\\|?*]', "", title)
  # Collapse whitespace, dashes, and brackets into single underscores.
  sanitized = re.sub(r"[\s\-\[\](){}]+", "_", sanitized)
+ # Trim trailing spaces/dots (for Windows compatibility) and avoid reserved names.
+ sanitized = sanitized.strip(" .")
  # Squeeze runs of underscores and trim the edges.
  sanitized = re.sub(r"_+", "_", sanitized).strip("_")
+ if sanitized.upper() in {
+ "CON",
+ "PRN",
+ "AUX",
+ "NUL",
+ "COM1",
+ "COM2",
+ "COM3",
+ "COM4",
+ "COM5",
+ "COM6",
+ "COM7",
+ "COM8",
+ "COM9",
+ "LPT1",
+ "LPT2",
+ "LPT3",
+ "LPT4",
+ "LPT5",
+ "LPT6",
+ "LPT7",
+ "LPT8",
+ "LPT9",
+ }:
+ sanitized = f"_{sanitized}"
  return sanitized
 
 
@@ -243,8 +310,8 @@ def download_audio(url, series, files_dir):
 
  if not series:
  return False, (
- f"No series specified for URL and cannot infer one. "
- f"Add `series: <name>` to the entry in targets.md."
+  f"No series specified for URL and cannot infer one. "
+  f"Add `series: <name>` to the entry in targets.md."
  )
 
  full_output_dir = os.path.join(files_dir, series)
@@ -258,11 +325,11 @@ def download_audio(url, series, files_dir):
  print("=" * 60)
 
  cmd = [
- "yt-dlp",
- "--extract-audio",
- "--audio-format",
- AUDIO_FORMAT,
- "--audio-quality",
+  *YT_DLP_CMD,
+  "--extract-audio",
+  "--audio-format",
+  AUDIO_FORMAT,
+  "--audio-quality",
  AUDIO_QUALITY,
  "--output",
  output_template,
