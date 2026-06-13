@@ -1,0 +1,2 @@
+# yt-archivist: only one Python dependency.
+yt-dlp>=2024.1.0

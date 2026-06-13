@@ -1,0 +1,15 @@
+# Downloaded media — large, regenerable, and specific to one machine's disk.
+files/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Tooling
+.DS_Store
+.idea/
+.vscode/
+.claude/
