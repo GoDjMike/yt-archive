@@ -108,7 +108,7 @@ def sanitize_filename(title):
 def infer_series_from_filepath(filepath):
  """Pull a series name out of an existing filepath for backward compat.
 
- e.g. `files/Star-Wars-X-Wing/foo.opus` -> `Star-Wars-X-Wing`.
+ e.g. `files/Book-Series/title.opus` -> `Book-Series`.
  Returns UNCATEGORIZED if the path doesn't have a parent directory.
  """
  if not filepath:
