@@ -13,3 +13,6 @@ venv/
 .idea/
 .vscode/
 .claude/
+
+# Local backups of .git (made before history rewrites)
+*.git.backup-*/

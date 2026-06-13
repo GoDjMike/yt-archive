@@ -56,12 +56,12 @@ uv pip install -r requirements.txt
 
 ## Usage
 
-### 1. Create a manifest
+### 1. Edit the manifest
 
-Copy the template and fill in your URLs:
+`targets.md` ships as a 3-entry example. Open it in your editor and
+replace the placeholder entries with your own URLs:
 
 ```sh
-cp targets.example.md targets.md
 $EDITOR targets.md
 ```
 
@@ -151,8 +151,7 @@ The cleanup script's threshold (`MIN_AUDIO_SIZE_MB = 50`) lives in
 ├── download_audio.py # main downloader
 ├── retry_failed.py # interactive wrapper around download_audio
 ├── cleanup_partial.py # sweep + reset for failed downloads
-├── targets.md # your manifest (not committed, see below)
-├── targets.example.md # template
+├── targets.md # the manifest — example entries; overwrite with your own URLs
 ├── files/ # downloaded audio, one subfolder per series
 ├── requirements.txt # yt-dlp
 └── README.md
@@ -162,11 +161,6 @@ The cleanup script's threshold (`MIN_AUDIO_SIZE_MB = 50`) lives in
 
 - `files/` — the actual audio. Large, regenerable, and tied to a
  particular machine's filesystem.
-- `targets.md` — your personal manifest with the URLs you're tracking.
- This **is** currently committed in this repo (since it's the original
- run), but if you fork this for a different
- project you should add `targets.md` to `.gitignore` or use a
- differently-named manifest file.
 - `.venv/`, `__pycache__/`, `.DS_Store`, `.claude/` — standard ignores.
 
 ## Notes
