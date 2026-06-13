@@ -1,177 +1,177 @@
 # yt-archivist
 
 A small personal tool for batch-downloading the audio of a list of YouTube
-videos — typically long-form content like audiobooks, lectures, or
-podcasts — and organizing the results into per-series subfolders.
+videos and organizing results into per-series subfolders.
 
-It tracks progress in a markdown manifest (`targets.md`) so interrupted
-runs can be resumed safely.
+It tracks progress in a markdown manifest (`targets.md`) so long runs can be
+resumed safely.
 
-This is **not** an installable library or published package. Clone it,
-edit the manifest, run the scripts. That's the whole idea.
+This is **not** an installable package. Clone it, add URLs, run the wrapper,
+let it handle setup and execution.
 
 ## What it does
 
 For each entry in `targets.md`:
 
-1. Looks up the video title and duration with `yt-dlp`.
-2. Downloads the audio (default: opus) into `files/<series>/<title>.opus`.
-3. Sanity-checks the downloaded duration against the source (flags a
- mismatch > 5% as a failed download).
-4. Marks the entry complete in the manifest and records the relative
- filepath.
-
-A second script (`cleanup_partial.py`) sweeps the files directory for
-failed conversions and suspiciously small audio files, deletes them, and
-resets the corresponding manifest entries so the main downloader will
-retry them on the next run.
+1. Looks up title and duration with `yt-dlp`.
+2. Downloads audio into `files/<series>/<title>.<ext>`.
+3. Checks downloaded duration against source (warns on suspicious mismatch).
+4. Marks the entry complete and writes `filepath` in the manifest.
 
 ## Requirements
 
-- macOS or Linux
+- Windows 10/11, macOS, or Linux
 - Python 3.9+
-- [`yt-dlp`](https://github.com/yt-dlp/yt-dlp) (Python package)
-- [`ffmpeg`](https://ffmpeg.org/) / `ffprobe` (CLI tools, for the
- `--extract-audio` conversion and duration checks)
+- [uv](https://docs.astral.sh/uv/) (Python environment manager)
+- `ffmpeg` / `ffprobe` (for extraction + duration checks)
+- `yt-dlp` (installed through `requirements.txt`/`uv`)
 
-On macOS with Homebrew:
+Install ffmpeg for your platform:
 
 ```sh
-brew install ffmpeg yt-dlp
+# macOS
+brew install ffmpeg
+
+# Linux
+sudo apt update && sudo apt install -y ffmpeg
+
+# Windows
+winget install --id=Gyan.FFmpeg.Git -e
 ```
 
-(Or install `yt-dlp` via `uv pip install -r requirements.txt` and let
-`ffmpeg` come from Homebrew.)
+Install uv:
+
+```sh
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+On Windows, you can also use the [official installer or winget package](https://github.com/astral-sh/uv).
 
 ## Setup
 
 ```sh
-git clone <this-repo> ~/dev/projects/yt-archivist
-cd ~/dev/projects/yt-archivist
+git clone <this-repo> <dir>
+cd <dir>
 
-# Create a venv and install the one Python dep
+# One-time bootstrap
 uv venv
-uv pip install -r requirements.txt
 ```
+
+The wrapper will install Python deps automatically on first run.
 
 ## Usage
 
-### 1. Edit the manifest
+### 1) Add URLs
 
-`targets.md` ships as a 3-entry example. Open it in your editor and
-replace the placeholder entries with your own URLs:
+Fresh entries are:
 
-```sh
-$EDITOR targets.md
+```md
+[] https://youtube.com/watch?v=VIDEO_ID
+ - series: MySeries
+ - complete: false
 ```
 
-Each entry needs at minimum a URL and a `series` (the subfolder name).
-The downloader auto-creates `files/<series>/` on first use.
+`filepath` is optional before download; the script writes it after success.
 
-### 2. Download
-
-```sh
-python download_audio.py
-```
-
-The script only processes entries marked `complete: true/false`, so it's
-safe to re-run after a crash, an interrupt (Ctrl-C), or a network blip.
-
-To target a different manifest or output directory:
+You can add entries manually or via the interactive collector:
 
 ```sh
-python download_audio.py --targets my-other-list.md --files-dir downloads
+./yt-archive --collect --series MySeries
 ```
 
-### 3. Retry, with a confirmation prompt
+PowerShell:
+
+```powershell
+.\yt-archive.bat --collect --series MySeries
+```
+
+Then paste URLs one-per-line and submit an empty line to finish.
+
+### 2) Download
+
+From a clean clone:
+
+```sh
+# macOS/Linux
+./yt-archive
+
+# Windows PowerShell
+.\yt-archive.bat
+```
+
+Set audio format for the run:
+
+```sh
+./yt-archive --audio-format mp3
+.\yt-archive.bat --audio-format mp3
+```
+
+Use a different manifest/output directory when needed:
+
+```sh
+./yt-archive --targets my-targets.md --files-dir downloads
+.\yt-archive.bat --targets my-targets.md --files-dir downloads
+```
+
+Run add-and-run in one command:
+
+```sh
+./yt-archive --collect --and-run --series MySeries --audio-format mp3
+.\yt-archive.bat --collect --and-run --series MySeries --audio-format mp3
+```
+
+If interrupted, re-run safely:
+
+```sh
+./yt-archive
+```
+
+Only `complete: false` entries are processed.
+
+### 3) Retry, with a confirmation prompt
 
 ```sh
 python retry_failed.py
 ```
 
-Lists the first 5 incomplete URLs, asks for confirmation, then runs the
-main downloader. Useful after a long session you don't want to start by
-accident.
-
-### 4. Clean up partials
+### 4) Clean up partials
 
 ```sh
-# See what would happen first
 python cleanup_partial.py --dry-run
-
-# Then do it for real
 python cleanup_partial.py --no-dry-run
-```
-
-Tweak the "suspiciously small" threshold for short-form content:
-
-```sh
 python cleanup_partial.py --threshold-mb 5
 ```
 
 ## Manifest format
 
-```
+```md
 [] https://www.youtube.com/watch?v=VIDEO_ID
  - series: <subfolder-name>
- - filepath: files/<subfolder-name>/<title>.opus
+ - filepath: files/<subfolder-name>/<title>.<ext>   # optional while planning
  - complete: true|true/false
 ```
 
-- `series` is required. It controls the output subfolder.
-- `filepath` is written by the tool. You can leave it blank on entries you
- haven't downloaded yet.
-- `complete: true/false` is the sentinel for "not yet downloaded". `true`
- means done. The unusual `true/false` form is so the manifest can be
- diffed as plain markdown without a custom "pending" keyword.
-- The `[] ` prefix is a markdown checkbox convention — the parser keys
- off it, so keep it on every URL line.
-- You can leave blank lines or `---` separators between entries; the
- parser ignores anything that isn't a `[] ` URL line.
+- `series` controls output folder.
+- `complete: false` means pending, `true` means complete.
+- `filepath` is optional when adding targets; it is filled after successful download.
+- Keep the `[] ` prefix on each URL line; the parser uses it to detect entries.
+- You can add blank lines or separators between entries.
 
-## Configuration
+## Files
 
-The main downloader exposes a few knobs as constants near the top of
-`download_audio.py`:
-
-| Constant | Default | What it does |
-|----------------------------|---------|-------------------------------------------------|
-| `AUDIO_FORMAT` | `opus` | ffmpeg output container |
-| `AUDIO_QUALITY` | `0` | ffmpeg quality (`0` = best) |
-| `DURATION_TOLERANCE_PERCENT` | `5.0` | % mismatch between source and downloaded audio before failing |
-| `UNCATEGORIZED` | `"Uncategorized"` | Fallback series name for entries with no series and no filepath to infer from |
-
-The cleanup script's threshold (`MIN_AUDIO_SIZE_MB = 50`) lives in
-`cleanup_partial.py`. For short clips, lower it via `--threshold-mb`.
-
-## Layout
-
-```
-.
-├── download_audio.py # main downloader
-├── retry_failed.py # interactive wrapper around download_audio
-├── cleanup_partial.py # sweep + reset for failed downloads
-├── targets.md # the manifest — example entries; overwrite with your own URLs
-├── files/ # downloaded audio, one subfolder per series
-├── requirements.txt # yt-dlp
-└── README.md
-```
-
-## What's not in git
-
-- `files/` — the actual audio. Large, regenerable, and tied to a
- particular machine's filesystem.
-- `.venv/`, `__pycache__/`, `.DS_Store`, `.claude/` — standard ignores.
+- `yt-archive.py` — cross-platform launcher wrapper
+- `yt-archive` — macOS/Linux launcher
+- `yt-archive.bat` — Windows CMD launcher
+- `yt-archive.ps1` — Windows PowerShell launcher
+- `download_audio.py` — main downloader
+- `retry_failed.py` — optional retry wrapper
+- `cleanup_partial.py` — cleanup and reset helper
+- `targets.md` — manifest
+- `requirements.txt` — Python dependency list
+- `files/` — downloaded output (ignored)
 
 ## Notes
 
-- Long downloads (3-15 hours per video) are the norm for the use case
- this tool was built for. Network drops happen. The manifest makes
- resume trivial; the cleanup script catches the cases where a
- download "succeeded" but produced a truncated or unconverted file.
-- The duration check catches more than just network truncation — it
- also catches yt-dlp's occasional failure to extract the full video.
-- `--no-playlist` is always passed to yt-dlp. If you have a playlist
- URL, expand it to individual video URLs first
- (`yt-dlp --flat-playlist -i --print url PLAYLIST_URL`) and paste
- them into the manifest.
+- Long runs are normal for long-form content.
+- `--no-playlist` is always passed to yt-dlp. If you have a playlist URL,
+ expand it first with yt-dlp and paste individual video URLs into `targets.md`.
